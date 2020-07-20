@@ -1,0 +1,14 @@
+// #pragma once
+
+#define GPS_LOG_PERIOD_SEC 3
+
+#define GPS_RXQ_PIN 1
+#define GPS_TXQ_PIN 2
+#define GSM_RXQ_PIN 3
+#define GSM_TXQ_PIN 4
+
+#define BASE_LOCATION_TPC "/HOME_AUTOMATION/STREET/CAR"
+
+#define MOTION_TPC "/HOME_AUTOMATION/STREET/CAR/GPS"
+
+
