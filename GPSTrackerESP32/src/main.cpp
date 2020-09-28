@@ -1,37 +1,110 @@
 #include <Arduino.h>
 
-#include "GPSTracker.h"
+#include "GPSReader.h"
 #include "Constants/Constants.h"
 
 
-GPSTracker gpsTracker(GPS_LOG_PERIOD_SEC);
 
-/*void showStatus() {
-  u8g2.clearBuffer();					// clear the internal memory
-  u8g2.setFont(u8g2_font_ncenB08_tr);	// choose a suitable font
-  if (gpsTracker.getStatus()) {
-    u8g2.drawStr(0,10, gpsTracker.getStatusStr().c_str());	// write something to the internal memory
-    u8g2.drawStr(0,20, gpsTracker.getGpsStatusStr().c_str());	// write something to the internal memory
-    u8g2.drawStr(0,30, gpsTracker.getGpsDataStr().c_str());	// write something to the internal memory
+//=========================================  MULTITASKING  =========================================
+TaskHandle_t gpsDataReaderHandler = NULL;
+TaskHandle_t gpsDataProcessorHandler = NULL;
+TaskHandle_t gsmKeepAliveHandler = NULL;
+TaskHandle_t updateScreenHandler = NULL;
+
+QueueHandle_t gpsDataProcessorQueue;
+
+void gpsDataReader(void *parameter) {
+  GPSReader gpsReader(PERIOD_GPS_READ);
+  for(;;) {
+    gpsReader.init();
   }
-  else u8g2.drawStr(0,20, currentInitStatus.c_str());
-  u8g2.sendBuffer();					// transfer internal memory to the display
-}*/
+}
+
+void gpsDataProcessor(void *parameter) {
+  for(;;) {
+  }
+}
+
+void gsmKeepAlive(void *parameter) {
+  for(;;) {
+    // gpsTracker.keepAlive();
+  }
+}
+
+void updateScreen(void *parameter) {
+  for(;;) {
+    // gpsTracker.showStatus();
+  }
+}
+
+//=========================================  MULTITASKING  =========================================
 
 void setup()
 {
   Serial.begin(115200);
   while(!Serial) ;
-  // u8g2.begin();
-  // showStatus();
-  gpsTracker.init();
+  // gpsTracker.init();
+
+  gpsDataProcessorQueue = xQueueCreate( 10, sizeof( GpsData ) );
+
+  //=========================================  PIN Tasks to Cores  =========================================
+
+  xTaskCreatePinnedToCore(
+      gpsDataReader, "gpsDataReader", 1000 //const uint32_t usStackDepth
+      ,
+      NULL //void *constpvParameters
+      ,
+      1 //UBaseType_t uxPriority
+      ,
+      &gpsDataReaderHandler //TaskHandle_t *constpvCreatedTask
+      ,
+      1 //const BaseType_t xCoreID
+  );
+
+  xTaskCreatePinnedToCore(
+      gpsDataProcessor, "gpsDataProcessor", 1000 //const uint32_t usStackDepth
+      ,
+      NULL //void *constpvParameters
+      ,
+      1 //UBaseType_t uxPriority
+      ,
+      &gpsDataProcessorHandler //TaskHandle_t *constpvCreatedTask
+      ,
+      1 //const BaseType_t xCoreID
+  );
+
+  xTaskCreatePinnedToCore(
+      gsmKeepAlive, "gsmKeepAlive", 1000 //const uint32_t usStackDepth
+      ,
+      NULL //void *constpvParameters
+      ,
+      1 //UBaseType_t uxPriority
+      ,
+      &gsmKeepAliveHandler //TaskHandle_t *constpvCreatedTask
+      ,
+      1 //const BaseType_t xCoreID
+  );
+
+  xTaskCreatePinnedToCore(
+      updateScreen, "updateScreen", 1000 //const uint32_t usStackDepth
+      ,
+      NULL //void *constpvParameters
+      ,
+      1 //UBaseType_t uxPriority
+      ,
+      &updateScreenHandler //TaskHandle_t *constpvCreatedTask
+      ,
+      1 //const BaseType_t xCoreID
+  );
+
+  //=========================================  PIN Tasks to Cores  =========================================
 }
 
 void loop()
 {
-  // showStatus();
-  gpsTracker.keepAlive();
-  gpsTracker.showStatus();
+  // gpsTracker.keepAlive();
+  // gpsTracker.showStatus();
+  vTaskDelete(NULL);
 }
 
 
