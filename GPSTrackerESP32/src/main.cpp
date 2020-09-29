@@ -1,9 +1,11 @@
 #include <Arduino.h>
 
-#include "GPSReader.h"
+#include <GPSTrackerStatus.h>
+#include <GPSReader.h>
+#include <GPSProcessor.h>
 #include "Constants/Constants.h"
 
-
+GPSTrackerStatus volatile gpsTrackerStatus;
 
 //=========================================  MULTITASKING  =========================================
 TaskHandle_t gpsDataReaderHandler = NULL;
@@ -15,13 +17,28 @@ QueueHandle_t gpsDataProcessorQueue;
 
 void gpsDataReader(void *parameter) {
   GPSReader gpsReader(PERIOD_GPS_READ);
+  gpsReader.init();
   for(;;) {
-    gpsReader.init();
+    GpsData gpsData = gpsReader.readGpsData();
+    xQueueGenericSendFromISR(gpsDataProcessorQueue, &gpsData, pdFALSE, queueSEND_TO_BACK);
+    delay(PERIOD_GPS_READ*1000);
   }
 }
 
 void gpsDataProcessor(void *parameter) {
+  GPSProcessor gpsProcessor(PERIOD_GPS_PROCCESS);
+  gpsProcessor.init();
   for(;;) {
+    if (!xQueueIsQueueEmptyFromISR(gpsDataProcessorQueue)) {
+      GpsData gpsData;
+      xQueueGenericReceive(gpsDataProcessorQueue, &gpsData, ( TickType_t ) 10 , false);
+      Serial.print("gpsDataProcessor: Received data: ");
+      Serial.print(gpsData.lat);
+      Serial.print(gpsData.lng);
+      Serial.print(". Still in queue: ");
+      Serial.println(uxQueueMessagesWaiting(gpsDataProcessorQueue));
+    }
+    delay(PERIOD_GPS_READ*1000);
   }
 }
 

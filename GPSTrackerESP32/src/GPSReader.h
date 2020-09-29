@@ -10,7 +10,7 @@ public:
 
     GPSReader(int gpsScanPeriod);
     void init();
-    void readGpsData();
+    GpsData readGpsData();
     // String getGpsDataJson(GpsData gpsData);
 
 private:

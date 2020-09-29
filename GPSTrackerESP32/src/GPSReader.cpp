@@ -17,7 +17,7 @@ void GPSReader::init() {
     gpsClient->init(/*GPS_RX_PIN, GPS_TX_PIN*/);
 }
 
-void GPSReader::readGpsData() {
+GpsData GPSReader::readGpsData() {
     GpsData gpsData = gpsClient->readGpsData();
     if (((millis() - lastGpsScanTime) > (gpsScanPeriod*1000)) && gpsData.lat > 10 && gpsData.lng > 10) {
         if(prevGpsData.lat == 0) prevGpsData = gpsData;
@@ -42,6 +42,7 @@ void GPSReader::readGpsData() {
             lastGpsScanTime = millis();
         }
     }
+    return gpsData;
 }
 
 
