@@ -3,9 +3,11 @@
 #include <GPSTrackerStatus.h>
 #include <GPSReader.h>
 #include <GPSProcessor.h>
+#include <NetworkConnection.h>
 #include "Constants/Constants.h"
 
 GPSTrackerStatus volatile gpsTrackerStatus;
+NetworkConnection violatile networkConnection();
 
 //=========================================  MULTITASKING  =========================================
 TaskHandle_t gpsDataReaderHandler = NULL;
