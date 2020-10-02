@@ -13,7 +13,7 @@ class GPSProcessor {
 
 public:
 
-    GPSProcessor(int gpsProcessPeriod);
+    GPSProcessor(int gpsProcessPeriod, MQTTClient* mqttClient);
     void init();
     void processGpsData(GpsData gpsData);
     String getGpsDataJson(GpsData gpsData);

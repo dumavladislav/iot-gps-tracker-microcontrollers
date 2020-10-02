@@ -2,8 +2,6 @@
 #include "NetworkConnection.h"
 #include <JsonMessageBuilder.h>
 
-using namespace Dumsky;
-
 NetworkConnection::NetworkConnection() {
     authorizationBlock.deviceId = DEVICE_ID;
     authorizationBlock.chipId = ESP.getEfuseMac();
@@ -23,11 +21,14 @@ void NetworkConnection::init() {
 uint8_t NetworkConnection::keepAlive() {
     if (!mqttClient->isConnected())
     {
+        Serial.println("NOT MQTT CONNECTED");
         gsmConnect.keepAlive(GSM_APN, GSM_GPRS_USER, GSM_GPRS_PASS);
         if (gsmConnect.GPRSConnected()){
+            Serial.println("GPRS CONNECTED");
             mqttClient->keepAlive(MQTT_USER, MQTT_PSSWD);
         }
     }
+    else    Serial.println("MQTT CONNECTED");
 }
 
 MQTTClient* NetworkConnection::getMqttClient() {

@@ -7,7 +7,7 @@
 #include "Constants/Constants.h"
 
 GPSTrackerStatus volatile gpsTrackerStatus;
-NetworkConnection violatile networkConnection();
+NetworkConnection /*volatile*/ networkConnection;
 
 //=========================================  MULTITASKING  =========================================
 TaskHandle_t gpsDataReaderHandler = NULL;
@@ -28,25 +28,28 @@ void gpsDataReader(void *parameter) {
 }
 
 void gpsDataProcessor(void *parameter) {
-  GPSProcessor gpsProcessor(PERIOD_GPS_PROCCESS);
+  GPSProcessor gpsProcessor(PERIOD_GPS_PROCCESS, networkConnection.getMqttClient());
+  GpsData gpsData;
   gpsProcessor.init();
   for(;;) {
     if (!xQueueIsQueueEmptyFromISR(gpsDataProcessorQueue)) {
-      GpsData gpsData;
       xQueueGenericReceive(gpsDataProcessorQueue, &gpsData, ( TickType_t ) 10 , false);
       Serial.print("gpsDataProcessor: Received data: ");
       Serial.print(gpsData.lat);
       Serial.print(gpsData.lng);
       Serial.print(". Still in queue: ");
       Serial.println(uxQueueMessagesWaiting(gpsDataProcessorQueue));
+      gpsProcessor.processGpsData(gpsData);
     }
     delay(PERIOD_GPS_READ*1000);
   }
 }
 
 void gsmKeepAlive(void *parameter) {
+  
   for(;;) {
-    // gpsTracker.keepAlive();
+    networkConnection.keepAlive();
+    delay(2000);
   }
 }
 
@@ -66,6 +69,8 @@ void setup()
 
   gpsDataProcessorQueue = xQueueCreate( 10, sizeof( GpsData ) );
 
+  networkConnection.init();
+
   //=========================================  PIN Tasks to Cores  =========================================
 
   xTaskCreatePinnedToCore(
@@ -81,7 +86,7 @@ void setup()
   );
 
   xTaskCreatePinnedToCore(
-      gpsDataProcessor, "gpsDataProcessor", 1000 //const uint32_t usStackDepth
+      gpsDataProcessor, "gpsDataProcessor", 2000 //const uint32_t usStackDepth
       ,
       NULL //void *constpvParameters
       ,
@@ -93,7 +98,7 @@ void setup()
   );
 
   xTaskCreatePinnedToCore(
-      gsmKeepAlive, "gsmKeepAlive", 1000 //const uint32_t usStackDepth
+      gsmKeepAlive, "gsmKeepAlive", 2000 //const uint32_t usStackDepth
       ,
       NULL //void *constpvParameters
       ,

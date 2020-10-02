@@ -1,6 +1,7 @@
 
 #include <DumskyGPSClient.h>
 #include "Constants/Constants.h"
+#include <MQTTClient.h>
 #include <Wire.h>
 #include <RealTimeClock.h>
 
@@ -17,7 +18,7 @@ private:
 
     HardwareSerial SerialGPS{2};
     GPSClient* gpsClient;
- 
+
     unsigned long lastGpsScanTime = 0;
     int gpsScanPeriod;
 

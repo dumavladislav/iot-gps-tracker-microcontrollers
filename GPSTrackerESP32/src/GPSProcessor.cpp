@@ -4,8 +4,9 @@
 
 using namespace Dumsky;
 
-GPSProcessor::GPSProcessor(int gpsProcessPeriod) {
+GPSProcessor::GPSProcessor(int gpsProcessPeriod, MQTTClient* mqttClient) {
     this->gpsProcessPeriod = gpsProcessPeriod;
+    this->mqttClient = mqttClient;
     authorizationBlock.deviceId = DEVICE_ID;
     authorizationBlock.chipId = ESP.getEfuseMac();
     SerialGSM.begin(115200, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
@@ -15,15 +16,27 @@ GPSProcessor::GPSProcessor(int gpsProcessPeriod) {
 
 void GPSProcessor::init() {
     
-    gsmConnect.init(&SerialGSM/*GSM_APN, GSM_GPRS_USER, GSM_GPRS_PASS*/);
-    authorizationBlock.macAddress = gsmConnect.getIMEI();
+    // gsmConnect.init(&SerialGSM/*GSM_APN, GSM_GPRS_USER, GSM_GPRS_PASS*/);
+    // authorizationBlock.macAddress = gsmConnect.getIMEI();
 
-    mqttClient = new MQTTClient((char*)authorizationBlock.deviceId.c_str());
-    mqttClient->init(MQTT_SERVER, MQTT_PORT, (Client*) gsmConnect.getClient());
+    // mqttClient = new MQTTCliGPS_TPC, "Hey!"ent((char*)authorGPS_TPC, "Hey!"izationBlock.deviceId.c_str());
+    // mqttClient->init(MQTT_SEGPS_TPC, "Hey!"RVER, MQTT_PORT, (Client*) gsmConnect.getClient());
     status = 1;
     //gsmConnect.connect(GSM_APN, GSM_GPRS_USER, GSM_GPRS_PASS);
 
 
+}
+
+void GPSProcessor::processGpsData(GpsData gpsData) {
+    Serial.println("GPSProcessor::Processing GPS data...");
+    if (mqttClient->isConnected()) {
+        Serial.println("GPSProcessor::MQTT connected!");
+        mqttClient->sendMessage(GPS_TPC, "Hey!");
+    }
+    else {
+        Serial.println("GPSProcessor::MQTT not connected!");
+    }
+    Serial.println("GPSProcessor::GPS data processed!");
 }
 
 /*
@@ -53,7 +66,7 @@ String GPSProcessor::getStatusStr() {
     status += "G: ";
     status += String(gsmConnect.GSMConnected()) + "-" + String(gsmConnect.GPRSConnected());
     status += " | M: ";
-    if (mqttClient->isConnected()) status += "1";
+    if (mqttClient->isConnected(GPS_TPC, "Hey!")) status += "1";
     else 
         status += "0";
     status += " | S: " + String(getSentCounter());
