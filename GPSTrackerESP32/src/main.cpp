@@ -5,9 +5,12 @@
 #include <GPSProcessor.h>
 #include <NetworkConnection.h>
 #include "Constants/Constants.h"
+#include <GPSScreen.h>
 
 GPSTrackerStatus volatile gpsTrackerStatus;
 NetworkConnection /*volatile*/ networkConnection;
+
+GPSScreen screen;
 
 //=========================================  MULTITASKING  =========================================
 TaskHandle_t gpsDataReaderHandler = NULL;
@@ -28,7 +31,7 @@ void gpsDataReader(void *parameter) {
 }
 
 void gpsDataProcessor(void *parameter) {
-  GPSProcessor gpsProcessor(PERIOD_GPS_PROCCESS, networkConnection.getMqttClient());
+  GPSProcessor gpsProcessor(PERIOD_GPS_PROCCESS);
   GpsData gpsData;
   gpsProcessor.init();
   for(;;) {
@@ -40,6 +43,7 @@ void gpsDataProcessor(void *parameter) {
       Serial.print(". Still in queue: ");
       Serial.println(uxQueueMessagesWaiting(gpsDataProcessorQueue));
       gpsProcessor.processGpsData(gpsData);
+      networkConnection.getMqttClient()->sendMessage(GPS_TPC, gpsProcessor.getGpsDataJson(gpsData));
     }
     delay(PERIOD_GPS_READ*1000);
   }
@@ -48,14 +52,39 @@ void gpsDataProcessor(void *parameter) {
 void gsmKeepAlive(void *parameter) {
   
   for(;;) {
+    
     networkConnection.keepAlive();
-    delay(2000);
+    delay(1000);
   }
 }
 
 void updateScreen(void *parameter) {
+  screen.init();
+  String str;
+
   for(;;) {
-    // gpsTracker.showStatus();
+    screen.clear();
+    str = "";
+    Serial.print("GSM Status: ");
+    Serial.println(networkConnection.getGsmStatus());
+    switch(networkConnection.getGsmStatus()) {
+      case 1:
+        str += "GSM  ";
+        break;
+      case 2:
+        str += "GPRS ";
+        break;
+      default:
+        str += "     ";
+        break;
+    }
+    str += " | ";
+    if (networkConnection.getMqttStatus() == 1) str += "MQTT";
+    screen.addString(str);
+    screen.addString("String 2");
+    screen.addString("String 3");
+    screen.render();
+    delay(1000);
   }
 }
 
@@ -110,7 +139,7 @@ void setup()
   );
 
   xTaskCreatePinnedToCore(
-      updateScreen, "updateScreen", 1000 //const uint32_t usStackDepth
+      updateScreen, "updateScreen", 2000 //const uint32_t usStackDepth
       ,
       NULL //void *constpvParameters
       ,
@@ -122,6 +151,7 @@ void setup()
   );
 
   //=========================================  PIN Tasks to Cores  =========================================
+  
 }
 
 void loop()

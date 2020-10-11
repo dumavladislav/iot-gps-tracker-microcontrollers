@@ -4,12 +4,12 @@
 
 using namespace Dumsky;
 
-GPSProcessor::GPSProcessor(int gpsProcessPeriod, MQTTClient* mqttClient) {
+GPSProcessor::GPSProcessor(int gpsProcessPeriod) {
     this->gpsProcessPeriod = gpsProcessPeriod;
-    this->mqttClient = mqttClient;
+    // this->mqttClient = mqttClient;
     authorizationBlock.deviceId = DEVICE_ID;
     authorizationBlock.chipId = ESP.getEfuseMac();
-    SerialGSM.begin(115200, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
+    // SerialGSM.begin(115200, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
 
     delay(3000);
 }
@@ -29,21 +29,17 @@ void GPSProcessor::init() {
 
 void GPSProcessor::processGpsData(GpsData gpsData) {
     Serial.println("GPSProcessor::Processing GPS data...");
-    if (mqttClient->isConnected()) {
-        Serial.println("GPSProcessor::MQTT connected!");
-        mqttClient->sendMessage(GPS_TPC, "Hey!");
-    }
-    else {
-        Serial.println("GPSProcessor::MQTT not connected!");
-    }
+    // if (mqttClient->isConnected()) {
+        // Serial.println("GPSProcessor::MQTT connected!");
+        //mqttClient->sendMessage(GPS_TPC, getGpsDataJson(gpsData));
+    // }
+    // else {
+    //     Serial.println("GPSProcessor::MQTT not connected!");
+    // }
     Serial.println("GPSProcessor::GPS data processed!");
 }
 
-/*
 
-uint8_t GPSProcessor::getStatus() {
-    return status;
-}
 
 String GPSProcessor::getGpsDataJson(GpsData gpsData) {
     
@@ -52,11 +48,13 @@ String GPSProcessor::getGpsDataJson(GpsData gpsData) {
     jsonMessageBuilder.addElement("millis", String(millis()));
     jsonMessageBuilder.addElement("lat", String(gpsData.lat, 6));
     jsonMessageBuilder.addElement("lng", String(gpsData.lng, 6));
-    jsonMessageBuilder.addElement("datetime", rtc.getDateTime());
+    // jsonMessageBuilder.addElement("datetime", rtc.getDateTime());
     
     return jsonMessageBuilder.toString();
 }
 
+
+/*
 unsigned long GPSProcessor::getSentCounter() {
     return coordSentCounter;
 }

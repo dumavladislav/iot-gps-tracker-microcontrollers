@@ -3,7 +3,7 @@
 #include "Constants/Constants.h"
 #include <MQTTClient.h>
 #include <Wire.h>
-#include <RealTimeClock.h>
+// #include <RealTimeClock.h>
 
 class GPSReader {
 
@@ -12,6 +12,7 @@ public:
     GPSReader(int gpsScanPeriod);
     void init();
     GpsData readGpsData();
+    GpsData lastGPSData();
     // String getGpsDataJson(GpsData gpsData);
 
 private:
@@ -25,7 +26,7 @@ private:
     GpsData prevGpsData;
     unsigned long coordCounter = 0;
 
-    RealTimeClock rtc;
+    // RealTimeClock rtc;
 };
 
 

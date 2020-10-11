@@ -13,7 +13,7 @@ class GPSProcessor {
 
 public:
 
-    GPSProcessor(int gpsProcessPeriod, MQTTClient* mqttClient);
+    GPSProcessor(int gpsProcessPeriod);
     void init();
     void processGpsData(GpsData gpsData);
     String getGpsDataJson(GpsData gpsData);
@@ -36,7 +36,7 @@ private:
 
     HardwareSerial SerialGSM{1};
     GSMConnect gsmConnect{GSM_RX_PIN, GSM_TX_PIN};
-    MQTTClient* mqttClient;
+    // MQTTClient* mqttClient;
     Dumsky::SDClient sdClient;
 
     // unsigned long lastGpsScanTime = 0;

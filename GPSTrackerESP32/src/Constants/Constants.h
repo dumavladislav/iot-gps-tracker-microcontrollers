@@ -1,6 +1,6 @@
 // #pragma once
 
-#define DEVICE_ID "GPS"
+#define DEVICE_ID "G"
 
 // #define GPS_LOG_PERIOD_SEC 3
 

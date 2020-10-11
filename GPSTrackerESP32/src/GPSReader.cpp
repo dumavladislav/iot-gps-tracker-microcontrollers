@@ -10,7 +10,7 @@ GPSReader::GPSReader(int gpsScanPeriod) {
 
 void GPSReader::init() {
     
-    rtc.init();  
+    // rtc.init();  
     delay(1000);  
    
     // sdClient.init();
@@ -45,4 +45,8 @@ GpsData GPSReader::readGpsData() {
     return gpsData;
 }
 
+
+GpsData GPSReader::lastGPSData() {
+    return prevGpsData;
+}
 
