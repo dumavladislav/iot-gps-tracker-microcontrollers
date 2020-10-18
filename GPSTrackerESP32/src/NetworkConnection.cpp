@@ -16,7 +16,7 @@ void NetworkConnection::init() {
     authorizationBlock.macAddress = gsmConnect.getIMEI();
 
     mqttClient = new MQTTClient((char*)authorizationBlock.deviceId.c_str());
-    mqttClient->init(MQTT_SERVER, MQTT_PORT, (Client*) gsmConnect.getClient());
+    mqttClient->init(MQTT_SERVER, MQTT_PORT, (Client*) gsmConnect.getClient(), MQTT_KEEPALIVE_TIMEOUT);
     Serial.println("NetworkConnection::init() DONE");
 }
 

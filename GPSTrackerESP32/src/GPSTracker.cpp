@@ -49,7 +49,7 @@ void GPSTracker::init() {
     ////////
 
     mqttClient = new MQTTClient((char*)authorizationBlock.deviceId.c_str());
-    mqttClient->init(MQTT_SERVER, MQTT_PORT, (Client*) gsmConnect.getClient());
+    mqttClient->init(MQTT_SERVER, MQTT_PORT, (Client*) gsmConnect.getClient(), MQTT_KEEPALIVE_TIMEOUT);
     // mqttClient->keepAlive(MQTT_USER, MQTT_PSSWD);
     
     // sdClient.init();

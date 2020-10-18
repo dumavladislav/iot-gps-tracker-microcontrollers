@@ -18,15 +18,22 @@ TaskHandle_t gpsDataProcessorHandler = NULL;
 TaskHandle_t gsmKeepAliveHandler = NULL;
 TaskHandle_t updateScreenHandler = NULL;
 
+QueueHandle_t gsmQueue;
 QueueHandle_t gpsDataProcessorQueue;
+
+SemaphoreHandle_t lasrReadGPSDataSemaphore = xSemaphoreCreateBinary();
+GpsData lastReadGPSData;
 
 void gpsDataReader(void *parameter) {
   GPSReader gpsReader(PERIOD_GPS_READ);
   gpsReader.init();
   for(;;) {
     GpsData gpsData = gpsReader.readGpsData();
-    xQueueGenericSendFromISR(gpsDataProcessorQueue, &gpsData, pdFALSE, queueSEND_TO_BACK);
-    delay(PERIOD_GPS_READ*1000);
+    lastReadGPSData = gpsData;
+    if (gpsData.gpsDataValid) {
+      xQueueGenericSendFromISR(gpsDataProcessorQueue, &gpsData, pdFALSE, queueSEND_TO_BACK);
+    }
+    vTaskDelay(PERIOD_GPS_READ*1000);
   }
 }
 
@@ -35,27 +42,50 @@ void gpsDataProcessor(void *parameter) {
   GpsData gpsData;
   gpsProcessor.init();
   for(;;) {
-    if (!xQueueIsQueueEmptyFromISR(gpsDataProcessorQueue)) {
+    if (xQueueIsQueueEmptyFromISR(gpsDataProcessorQueue) != pdTRUE) {
       xQueueGenericReceive(gpsDataProcessorQueue, &gpsData, ( TickType_t ) 10 , false);
       Serial.print("gpsDataProcessor: Received data: ");
       Serial.print(gpsData.lat);
       Serial.print(gpsData.lng);
       Serial.print(". Still in queue: ");
       Serial.println(uxQueueMessagesWaiting(gpsDataProcessorQueue));
-      gpsProcessor.processGpsData(gpsData);
-      networkConnection.getMqttClient()->sendMessage(GPS_TPC, gpsProcessor.getGpsDataJson(gpsData));
+      //gpsProcessor.processGpsData(gpsData);
+      //networkConnection.getMqttClient()->sendMessage(GPS_TPC, gpsProcessor.getGpsDataJson(gpsData));
+      if (uxQueueSpacesAvailable(gsmQueue) > 0) {
+        xQueueGenericSendFromISR(gsmQueue, &gpsData, pdFALSE, queueSEND_TO_BACK);
+      }
+      else {
+        Serial.println("NO SPACE IN GSM QUEUE! WRITING TO SD!");
+      }
     }
-    delay(PERIOD_GPS_READ*1000);
+    vTaskDelay(PERIOD_GPS_READ*1000);
   }
 }
 
 void gsmKeepAlive(void *parameter) {
+
+  GPSProcessor gpsProcessor(PERIOD_GPS_PROCCESS);
+  GpsData gpsData;
   
   for(;;) {
     
     networkConnection.keepAlive();
-    delay(1000);
+
+    Serial.print("Messages in GSM queue: ");
+    Serial.println(uxQueueMessagesWaiting(gsmQueue));
+
+    if (networkConnection.getMqttStatus() == 1) {
+      if (!xQueueIsQueueEmptyFromISR(gsmQueue)) {
+        xQueueGenericReceive(gsmQueue, &gpsData, ( TickType_t ) 10 , false);
+        networkConnection.getMqttClient()->sendMessage(GPS_TPC, gpsProcessor.getGpsDataJson(gpsData));
+      }
+    }
+
+    vTaskDelay(1000);
   }
+
+
+
 }
 
 void updateScreen(void *parameter) {
@@ -65,8 +95,8 @@ void updateScreen(void *parameter) {
   for(;;) {
     screen.clear();
     str = "";
-    Serial.print("GSM Status: ");
-    Serial.println(networkConnection.getGsmStatus());
+    // Serial.print("GSM Status: ");
+    // Serial.println(networkConnection.getGsmStatus());
     switch(networkConnection.getGsmStatus()) {
       case 1:
         str += "GSM  ";
@@ -81,10 +111,14 @@ void updateScreen(void *parameter) {
     str += " | ";
     if (networkConnection.getMqttStatus() == 1) str += "MQTT";
     screen.addString(str);
-    screen.addString("String 2");
+    str = "";
+    str += String(lastReadGPSData.lat, 6);
+    str += "; ";
+    str += String(lastReadGPSData.lng, 6);
+    screen.addString(str);
     screen.addString("String 3");
     screen.render();
-    delay(1000);
+    vTaskDelay(1000);
   }
 }
 
@@ -97,6 +131,7 @@ void setup()
   // gpsTracker.init();
 
   gpsDataProcessorQueue = xQueueCreate( 10, sizeof( GpsData ) );
+  gsmQueue = xQueueCreate( 10, sizeof( GpsData ) );
 
   networkConnection.init();
 

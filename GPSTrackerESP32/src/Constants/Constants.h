@@ -1,6 +1,6 @@
 // #pragma once
 
-#define DEVICE_ID "G"
+#define DEVICE_ID "A"
 
 // #define GPS_LOG_PERIOD_SEC 3
 
@@ -17,5 +17,7 @@
 #define PERIOD_GPS_PROCCESS 3
 #define PERIOD_GSM_KEEPALIVE 0.5
 #define PERIOD_SCREEN_UPDATE 0.5
+
+#define MQTT_KEEPALIVE_TIMEOUT 60
 
 
