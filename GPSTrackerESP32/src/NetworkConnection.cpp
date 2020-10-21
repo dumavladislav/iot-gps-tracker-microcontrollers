@@ -69,3 +69,16 @@ void NetworkConnection::setMqttStatus(uint8_t status) {
     //return mqttClient->isConnected();
     this->mqttStatus = status;
 }
+
+
+String NetworkConnection::getGpsDataJson(GpsData gpsData) {
+    
+    JsonMessageBuilder jsonMessageBuilder(authorizationBlock);
+
+    jsonMessageBuilder.addElement("millis", String(millis()));
+    jsonMessageBuilder.addElement("lat", String(gpsData.lat, 6));
+    jsonMessageBuilder.addElement("lng", String(gpsData.lng, 6));
+    // jsonMessageBuilder.addElement("datetime", rtc.getDateTime());
+    
+    return jsonMessageBuilder.toString();
+}

@@ -1,10 +1,8 @@
 
 #include <GSMConnect.h>
 #include <MQTTClient.h>
+#include <DumskyGPSClient.h>
 #include "Constants/Constants.h"
-//#include <Wire.h>
-//#include <RealTimeClock.h>
-
 
 class NetworkConnection {
 
@@ -18,8 +16,9 @@ public:
     void setMqttStatus(uint8_t status);         // 0 - Not Connected, 1 - Connected
     uint8_t getGsmStatus();                     // 0 - No Connection, 1 - GSM only, 2 - GPRS
     uint8_t getMqttStatus();                    // 0 - Not Connected, 1 - Connected
-  
 
+    String getGpsDataJson(GpsData gpsData);
+    
 private:
 
     AuthorizationBlock authorizationBlock;

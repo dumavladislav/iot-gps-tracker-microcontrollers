@@ -1,6 +1,6 @@
 // #pragma once
 
-#define DEVICE_ID "A"
+#define DEVICE_ID "GPS"
 
 // #define GPS_LOG_PERIOD_SEC 3
 
@@ -8,6 +8,10 @@
 #define GPS_TX_PIN 17
 #define GSM_RX_PIN 4
 #define GSM_TX_PIN 2
+
+#define SD_CS_PIN 5
+#define SD_LOGS_DIR "/logs"
+#define SD_TO_MQTT_DATA "/to_mqtt"
 
 #define BASE_LOCATION_TPC "/HOME_AUTOMATION/STREET/CAR"
 
