@@ -37,7 +37,7 @@ uint8_t NetworkConnection::keepAlive() {
         }
     }
     else {
-        Serial.println("MQTT CONNECTED");
+        // Serial.println("MQTT CONNECTED");
         this->setMqttStatus(1);
     }
 }
@@ -78,7 +78,7 @@ String NetworkConnection::getGpsDataJson(GpsData gpsData) {
     jsonMessageBuilder.addElement("millis", String(millis()));
     jsonMessageBuilder.addElement("lat", String(gpsData.lat, 6));
     jsonMessageBuilder.addElement("lng", String(gpsData.lng, 6));
-    // jsonMessageBuilder.addElement("datetime", rtc.getDateTime());
+    jsonMessageBuilder.addElement("rtcTimestamp", String(gpsData.rtcTimestamp));
     
     return jsonMessageBuilder.toString();
 }

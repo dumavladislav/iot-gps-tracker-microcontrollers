@@ -96,9 +96,6 @@ void SDClient::writeLogString(String logString, String filename) {
     recordsCounter++;
     recordsInFileCounter++;
 
-    // Serial.print("WRITELOGSTRING: ");
-    // Serial.println(logString);
-
     if(recordsInFileCounter > maxRecordsInFile) {
         filesCounter++;
         fileStorage->remove("/fcntr.txt");
@@ -166,4 +163,37 @@ void SDClient::listDir(const char * dirname, uint8_t levels) {
     }
     file = dirRoot.openNextFile();
   }
+}
+
+const char* SDClient::getNextFileFromDir(const char * dirname) {
+  
+  // Serial.printf("Getting next file from directory: %s\n", dirname);
+  
+  File dirRoot = fileStorage->open(dirname);
+  if(!dirRoot){
+    Serial.println("Failed to open directory");
+    return NULL;
+  }
+  if(!dirRoot.isDirectory()){
+    Serial.println("Not a directory");
+    return NULL;
+  }
+  
+  File file = dirRoot.openNextFile();
+  while(file){
+    // Serial.print("File Found: ");
+    // Serial.println(file.name());
+    if(!file.isDirectory()){
+      // Serial.println("YEAH! It's a file!!!");
+      return file.name();
+    }
+    file = dirRoot.openNextFile();
+  }
+  return NULL;
+}
+
+void SDClient::removeFile(String fullFilePath) {
+  Serial.print("File to be REMOVED: ");
+  Serial.println(fullFilePath);
+  fileStorage->remove(fullFilePath);
 }

@@ -10,6 +10,9 @@
 #include <SDClient.h>
 #include <LogFile.h>
 
+// typedef char GpsDataString[1000];
+typedef struct GpsDataString { char gpsJson[1000]; } GpsDataString;
+
 GPSTrackerStatus volatile gpsTrackerStatus;
 NetworkConnection /*volatile*/ networkConnection;
 RTC3231 rtc;
@@ -42,16 +45,21 @@ void gpsDataReader(void *parameter) {
   GpsData gpsData;
   for(;;) {
     gpsData = gpsReader.readGpsData();
-    Serial.println(gpsData.lat);
+    gpsData.rtcTimestamp = rtc.getTimeStamp();
+    // Serial.print("GPS Data Timestamp: ");
+    // Serial.println(gpsData.rtcTimestamp);
     lastReadGPSData = gpsData;
     if (gpsData.gpsDataValid) {
       if (uxQueueSpacesAvailable(gpsDataProcessorQueue) > 0) {
+        Serial.println("Writing to gpsDataProcessorQueue...");
         xQueueGenericSendFromISR(gpsDataProcessorQueue, &gpsData, pdFALSE, queueSEND_TO_BACK);
       }
       else {
         log.logString("GPS Data Processor Queue is full!");
       }
     }
+    Serial.print("GPS Data Lat: ");
+    Serial.println(gpsData.lat);
     vTaskDelay(PERIOD_GPS_READ*1000);
   }
 }
@@ -62,7 +70,9 @@ void gpsDataProcessor(void *parameter) {
   LogFile log(&SD, "gpsDataProcessor", SD_LOGS_DIR, 1024, 20);
   log.init(&rtc);
 
-  LogFile gpsDataFile(&SD, "gpsData", "", 1024, 20, SD_TO_MQTT_DATA);
+  bool wasMqttConnected = false;
+
+  LogFile gpsDataFile(&SD, "gpsData", "", 1024, GPS_BATCH_SIZE, SD_TO_MQTT_DATA);
   gpsDataFile.init(&rtc);
 
   log.logString("Initializing GPS Data Processor...");
@@ -77,13 +87,40 @@ void gpsDataProcessor(void *parameter) {
       Serial.print(gpsData.lng);
       Serial.print(". Still in queue: ");
       Serial.println(uxQueueMessagesWaiting(gpsDataProcessorQueue));
-      if (uxQueueSpacesAvailable(gsmQueue) > 0) {
-        xQueueGenericSendFromISR(gsmQueue, &gpsData, pdFALSE, queueSEND_TO_BACK);
+      if (networkConnection.getMqttStatus() == 1) {
+        if (!wasMqttConnected) {
+          wasMqttConnected = true;
+          log.logString("MQTT Connection RESTORED!");
+          gpsDataFile.rotateFile();
+        }
       }
       else {
-        Serial.println("NO SPACE IN GSM QUEUE! WRITING TO SD!");
-        log.logString("NO SPACE IN GSM QUEUE! WRITING TO SD!");
-        gpsDataFile.writeString(networkConnection.getGpsDataJson(gpsData));
+        if (wasMqttConnected) {
+          wasMqttConnected = false;
+          log.logString("MQTT Connection LOST!");          
+        }
+      }
+
+      if (gpsData.gpsDataValid) {
+        Serial.print("GPS Data VALID!!!!");
+        GpsDataString gpsDataString;
+        networkConnection.getGpsDataJson(gpsData).toCharArray(gpsDataString.gpsJson, 1000);
+        if (uxQueueSpacesAvailable(gsmQueue) > 0 && networkConnection.getMqttStatus() == 1) {
+          Serial.println("Wrinting to gsmQueue: ");
+          Serial.println(gpsDataString.gpsJson);
+          xQueueGenericSendFromISR(gsmQueue, &gpsData, pdFALSE, queueSEND_TO_BACK);
+        }
+        else {
+          if (networkConnection.getMqttStatus() == 1) {
+            // Serial.println("NO SPACE IN GSM QUEUE! WRITING TO SD!");
+            log.logString("NO SPACE IN GSM QUEUE! WRITING TO SD!");
+          }
+          else {
+            // Serial.println("NO MQTT CONNECTION! WRITING TO SD!");
+            log.logString("NO MQTT CONNECTION! WRITING TO SD!");
+          }
+          gpsDataFile.writeString(gpsDataString.gpsJson);
+        }
       }
     }
     vTaskDelay(PERIOD_GPS_READ*1000);
@@ -94,6 +131,7 @@ void gsmKeepAlive(void *parameter) {
 
   GPSProcessor gpsProcessor(PERIOD_GPS_PROCCESS);
   GpsData gpsData;
+  GpsDataString gpsDataString;
   
   LogFile log(&SD, "gsmKeepAlive", SD_LOGS_DIR, 1024, 20);
   log.init(&rtc);
@@ -104,17 +142,25 @@ void gsmKeepAlive(void *parameter) {
     
     networkConnection.keepAlive();
 
-    Serial.print("Messages in GSM queue: ");
-    Serial.println(uxQueueMessagesWaiting(gsmQueue));
+    // Serial.print("Messages in GSM queue: ");
+    // Serial.println(uxQueueMessagesWaiting(gsmQueue));
 
     if (networkConnection.getMqttStatus() == 1) {
+      Serial.println("MQTT CONNECTION = YES");
       if (!prevMqttAlive) {
         log.logString("Connected to MQTT!");
         prevMqttAlive = true;
       }
-      if (!xQueueIsQueueEmptyFromISR(gsmQueue)) {
-        xQueueGenericReceive(gsmQueue, &gpsData, ( TickType_t ) 10 , false);
-        networkConnection.getMqttClient()->sendMessage(GPS_TPC, networkConnection.getGpsDataJson(gpsData));
+      // gpsDataString.gpsJson = String("");
+      if (xQueueIsQueueEmptyFromISR(gsmQueue) != pdTRUE) {
+        Serial.println("GSM QUEUE NOT EMPTY!!!");
+        xQueueGenericReceive(gsmQueue, &gpsDataString, ( TickType_t ) 10 , false);
+        Serial.print("gpsDataJson: ");
+        Serial.println(gpsDataString.gpsJson);
+        // if (!gpsDataJson.equals("")) {
+          // Serial.println("gpsDataJson NOT EMPTY. Sending.....");
+          networkConnection.getMqttClient()->sendMessage(GPS_TPC, gpsDataString.gpsJson);
+        // }
       }
     }
     else {
@@ -170,9 +216,54 @@ void gpsFilesProcessor(void *parameter) {
   log.init(&rtc);
   log.logString("GPS Files Processor Started!");
 
+  bool wasMqttConnected = false;
+  int waitPeriod = PERIOD_FILES_PROCESSOR;
+
   for(;;) {
-    sdClient.listDir("/", 1);
-    vTaskDelay(10000);
+    // sdClient.listDir("/", 1);
+    if (uxQueueSpacesAvailable(gsmQueue) > 0 && networkConnection.getMqttStatus() == 1) {
+      if (!wasMqttConnected) { 
+        log.logString("MQTT CONNECTION RESTORED!");
+        waitPeriod = PERIOD_FILES_PROCESSOR;
+        wasMqttConnected = true;
+      }
+
+      //////////////////      READING GPS DATA FILES
+
+      String nextFileName = sdClient.getNextFileFromDir(SD_TO_MQTT_DATA);
+      // Serial.print("Next File Name received: ");
+      // Serial.println(nextFileName);
+      if (nextFileName /*&& !nextFile.isDirectory() && nextFile.name() != ""*/) {
+        log.logString(String("Processing File: ") + nextFileName);
+        File nextFile = SD.open(nextFileName, FILE_READ);
+        GpsDataString gpsDataString;
+        while (nextFile.available()) {
+          nextFile.readStringUntil('\n').toCharArray(gpsDataString.gpsJson, 1000);
+          Serial.print("GPS DATA FROM FILE: ");
+          Serial.println(gpsDataString.gpsJson); //Printing for debugging purpose         
+          if (uxQueueSpacesAvailable(gsmQueue) > 0 && networkConnection.getMqttStatus() == 1) {
+            xQueueGenericSendFromISR(gsmQueue, &gpsDataString.gpsJson, pdFALSE, queueSEND_TO_BACK);
+          }
+        }
+        nextFile.close();
+        sdClient.removeFile(nextFileName);
+      }
+
+      //////////////////      READING GPS DATA FILES      \\\\\\\\\\\\\\\\\\\\\\\\\
+
+    }
+    else {
+      if (wasMqttConnected) log.logString("MQTT CONNECTION LOST!");
+      else {
+
+        if (waitPeriod < MAX_FILES_PROCESSOR_WAIT_PERIOD) {
+          waitPeriod += 1000;
+          log.logString("STILL NO CONNECTION! Increasing wait period: " + waitPeriod);
+        }
+      }
+      wasMqttConnected = false;
+    }
+    vTaskDelay(waitPeriod);
   }
 }
 //=========================================  MULTITASKING  =========================================
@@ -188,7 +279,7 @@ void setup()
 
 
   gpsDataProcessorQueue = xQueueCreate( 10, sizeof( GpsData ) );
-  gsmQueue = xQueueCreate( 10, sizeof( GpsData ) );
+  gsmQueue = xQueueCreate( 10, sizeof(GpsDataString) );
 
   Serial.print("Initializing SD card...");
 
@@ -252,9 +343,9 @@ void setup()
       1 //const BaseType_t xCoreID
   );
 
-/*
-  xTaskCreatePinnedToCore(
-      gpsFilesProcessor, "gpsFilesProcessor", 3000 //const uint32_t usStackDepth
+
+/*  xTaskCreatePinnedToCore(
+      gpsFilesProcessor, "gpsFilesProcessor", 4000 //const uint32_t usStackDepth
       ,
       NULL //void *constpvParameters
       ,
@@ -263,8 +354,8 @@ void setup()
       &gpsFilesProcessorHandler //TaskHandle_t *constpvCreatedTask
       ,
       1 //const BaseType_t xCoreID
-  );
-*/
+  );*/
+
   //=========================================  PIN Tasks to Cores  =========================================
   
 }

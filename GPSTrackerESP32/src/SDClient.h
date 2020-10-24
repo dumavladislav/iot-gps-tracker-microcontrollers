@@ -13,8 +13,10 @@ public:
     void init(FS* fileStorage, RTC3231 *rtc);
     // String generateFileHeader();
     void listDir(const char * dirname, uint8_t levels);
+    const char* getNextFileFromDir(const char * dirname);
     // void createFile(String filename);
     // void moveFile(String filename, String filenameTarget);
+    void removeFile(String fullFilePath);
     void writeLogString(String logString, String filename);
 
 private:
