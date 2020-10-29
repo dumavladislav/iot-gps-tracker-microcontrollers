@@ -11,7 +11,7 @@
 #include <LogFile.h>
 
 // typedef char GpsDataString[1000];
-typedef struct GpsDataString { char gpsJson[1000]; } GpsDataString;
+struct GpsDataString { char gpsJson[1000]; };
 
 GPSTrackerStatus volatile gpsTrackerStatus;
 NetworkConnection /*volatile*/ networkConnection;
@@ -108,7 +108,7 @@ void gpsDataProcessor(void *parameter) {
         if (uxQueueSpacesAvailable(gsmQueue) > 0 && networkConnection.getMqttStatus() == 1) {
           Serial.println("Wrinting to gsmQueue: ");
           Serial.println(gpsDataString.gpsJson);
-          xQueueGenericSendFromISR(gsmQueue, &gpsData, pdFALSE, queueSEND_TO_BACK);
+          xQueueGenericSendFromISR(gsmQueue, &gpsDataString.gpsJson, pdFALSE, queueSEND_TO_BACK);
         }
         else {
           if (networkConnection.getMqttStatus() == 1) {
