@@ -205,6 +205,7 @@ void updateScreen(void *parameter) {
     str += String(lastReadGPSData.lng, 6);
     screen.addString(str);
     screen.addString(rtc.getDateTime());
+    Serial.println(rtc.getDateTime());
     screen.render();
     vTaskDelay(1000);
   }
@@ -272,6 +273,7 @@ void setup()
 {
   Serial.begin(115200);
   while(!Serial) ;
+  
   // Serial.print("THE TIME IS: ");
   // Serial.println(__TIME__);
   // Serial.println(CURRENT_TIME);
